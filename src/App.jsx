@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 
-import Hero from './components/Hero/Hero'
+
 import HeroOne from './components/Hero/HeroOne'
 import About from './components/About/About'
 import Subscription from './components/Subscription/Subscription'
