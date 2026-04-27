@@ -28,6 +28,7 @@ a trusted tax & business consultancy serving Pakistan, Australia, and the UK.
 ## Project Structure
 
 ├── client/   # React frontend → deployed on Vercel
+
 └── server/   # Express backend → deployed on Render
 
 ---
@@ -36,11 +37,14 @@ a trusted tax & business consultancy serving Pakistan, Australia, and the UK.
 
 **Frontend:**
 cd client
+
 npm install
+
 npm run dev
 
 **Backend:**
 cd server
+
 npm install
 npm start
 
