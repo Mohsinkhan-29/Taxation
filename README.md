@@ -36,6 +36,7 @@ a trusted tax & business consultancy serving Pakistan, Australia, and the UK.
 ## Run Locally
 
 **Frontend:**
+
 cd client
 
 npm install
@@ -43,9 +44,11 @@ npm install
 npm run dev
 
 **Backend:**
+
 cd server
 
 npm install
+
 npm start
 
 <img width="1891" height="1023" alt="Screenshot 2026-04-27 212126" src="https://github.com/user-attachments/assets/fbc734ce-8832-4c34-8ce3-ea60786a41bb" />
