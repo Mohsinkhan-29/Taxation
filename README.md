@@ -1,4 +1,4 @@
-# Biz2Optima — Tax & Business Consultancy Website
+# Biz2Optima - Tax & Business Consultancy Website
 
 Built for a real client **Biz2Optima** (operating in AU, PK, GB),                     
 a trusted tax & business consultancy serving Pakistan, Australia, and the UK.
