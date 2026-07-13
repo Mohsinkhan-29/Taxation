@@ -3,7 +3,7 @@ import cors from "cors";
 import dotenv from "dotenv";
 import rateLimit from "express-rate-limit";
 import pkg from "pg";
-import nodemailer from "nodemailer";
+import { Resend } from "resend";
 import { z } from "zod";
 
 
@@ -40,23 +40,17 @@ try {
   console.error("❌ DB Error:", err);
 }
 
-// -------------------- NODEMAILER TRANSPORTER --------------------
-const transporter = nodemailer.createTransport({
-  host: "smtp.gmail.com",
-  port: 587,
-  secure: false,
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
-});
-
-try {
-  await transporter.verify();
-  console.log("✅ Email transporter ready");
-} catch (err) {
-  console.error("❌ SMTP verify failed:", err);
+// -------------------- RESEND CLIENT --------------------
+// Sends over HTTPS instead of raw SMTP — avoids the SMTP port
+// blocking/timeouts common on Render, Railway, Heroku, etc.
+if (!process.env.RESEND_API_KEY) {
+  console.error("❌ RESEND_API_KEY is not set — email sending will fail");
 }
+if (!process.env.EMAIL_USER) {
+  console.error("❌ EMAIL_USER is not set — email sending will fail");
+}
+
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 // -------------------- VALIDATION SCHEMAS --------------------
 
@@ -107,9 +101,10 @@ const sendContactNotification = (name, email, message) => {
   const safeEmail = escapeHTML(email);
   const safeMessage = escapeHTML(message).replace(/\n/g, "<br/>");
 
-  return transporter.sendMail({
-    from: `"Biz2Optima Contact" <${process.env.EMAIL_USER}>`,
+  return resend.emails.send({
+    from: `Biz2Optima Contact <${process.env.EMAIL_USER}>`,
     to: process.env.ADMIN_EMAIL,
+    replyTo: email,
     subject: `📩 New Message from ${safeName}`,
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; padding: 24px; border: 1px solid #e0e0e0; border-radius: 8px;">
@@ -132,8 +127,8 @@ const sendContactNotification = (name, email, message) => {
 const sendWelcomeEmail = (subscriberEmail) => {
   const safeEmail = escapeHTML(subscriberEmail);
 
-  return transporter.sendMail({
-    from: `"Biz2Optima Solutions" <${process.env.EMAIL_USER}>`,
+  return resend.emails.send({
+    from: `Biz2Optima Solutions <${process.env.EMAIL_USER}>`,
     to: subscriberEmail,
     subject: "Welcome to Biz2Optima! 🎉",
     html: `
@@ -160,9 +155,10 @@ const sendWelcomeEmail = (subscriberEmail) => {
 const sendSubscriberNotification = (subscriberEmail) => {
   const safeEmail = escapeHTML(subscriberEmail);
 
-  return transporter.sendMail({
-    from: `"Biz2Optima" <${process.env.EMAIL_USER}>`,
+  return resend.emails.send({
+    from: `Biz2Optima <${process.env.EMAIL_USER}>`,
     to: process.env.ADMIN_EMAIL,
+    replyTo: subscriberEmail,
     subject: `🔔 New Subscriber: ${safeEmail}`,
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; padding: 24px; border: 1px solid #e0e0e0; border-radius: 8px;">
