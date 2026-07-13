@@ -26,6 +26,13 @@ const pool = new Pool({
   ssl: { rejectUnauthorized: false }
 });
 
+// Without this handler, an error on an idle pooled client (dropped connection,
+// DB restart, network blip, etc.) is treated as an uncaught exception and
+// crashes the whole process. This just logs it and lets the pool recover.
+pool.on("error", (err) => {
+  console.error("❌ Unexpected PG pool error (idle client):", err);
+});
+
 try {
   await pool.query("SELECT NOW()");
   console.log("✅ PostgreSQL Connected");
