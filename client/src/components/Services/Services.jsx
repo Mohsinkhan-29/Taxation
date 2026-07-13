@@ -169,7 +169,7 @@ function DetailPanel({ service, onClose }) {
           ))}
 
           <a
-            href="https://wa.me/923342844244"
+            href="https://wa.me/923211046090"
             target="_blank"
             rel="noopener noreferrer"
             className="mt-1 text-center text-[13px] font-semibold text-white py-3 px-5 rounded-xl transition-opacity hover:opacity-90"

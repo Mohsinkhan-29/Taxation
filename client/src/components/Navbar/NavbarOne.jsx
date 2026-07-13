@@ -14,7 +14,7 @@ const NAV_LINKS = [
   },
   { label: "Insights", id: "TrustBar" },
   { label: "FAQ", id: "FAQ" },
-  { label: "Contact Us", href: "https://wa.me/923342844244", target: "_blank" },
+  { label: "Contact Us", href: "https://wa.me/923211046090", target: "_blank" },
 ];
 
 const scrollToSection = (id) => {
@@ -102,10 +102,10 @@ export default function Navbar() {
         {/* LEFT */}
         <div className="flex items-center gap-3">
           <a
-            href="tel:+611234567890"
+            href="tel:+923211046090"
             className="text-white/60 text-xs tracking-wide hover:text-gold transition-colors"
           >
-            +61 123 456 7890
+            +92 3211 046090
           </a>
           <span className="w-px h-3 bg-white/30" />
           <a
@@ -403,7 +403,7 @@ export default function Navbar() {
 
       {/* ── WhatsApp FAB ── */}
       <a
-        href="https://wa.me/923342844244"
+        href="https://wa.me/923211046090"
         target="_blank"
         rel="noopener noreferrer"
         className="fixed bottom-5 right-5 z-50 group"

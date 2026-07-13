@@ -4,11 +4,17 @@ import dotenv from "dotenv";
 import rateLimit from "express-rate-limit";
 import pkg from "pg";
 import nodemailer from "nodemailer";
+import { z } from "zod";
+
 
 dotenv.config();
 
 const { Pool } = pkg;
 const app = express();
+
+// If deployed behind a reverse proxy / load balancer (Vercel, Render, Nginx, etc.),
+// this is required for express-rate-limit to correctly identify client IPs.
+app.set("trust proxy", 1);
 
 // -------------------- MIDDLEWARE --------------------
 app.use(cors({ origin: process.env.CLIENT_URL }));
@@ -33,28 +39,74 @@ const transporter = nodemailer.createTransport({
   }
 });
 
+
 // Verify transporter on startup
 transporter.verify()
   .then(() => console.log("✅ Email transporter ready"))
   .catch(err => console.error("❌ Email error:", err));
 
+// -------------------- VALIDATION SCHEMAS --------------------
+
+const messageSchema = z.object({
+  name: z
+    .string()
+    .min(2, "Name too short")
+    .max(50, "Name too long")
+    .regex(/^[a-zA-Z\s]+$/, "Name must contain only letters"),
+
+  email: z
+    .string()
+    .email("Invalid email format")
+    .max(100)
+    .transform((val) => val.toLowerCase().trim()),
+
+  message: z
+    .string()
+    .min(5, "Message too short")
+    .max(1000, "Message too long")
+});
+
+
+const subscriberSchema = z.object({
+  email: z
+    .string()
+    .email("Invalid email")
+    .max(100)
+    .transform((val) => val.toLowerCase().trim())
+});
+
+// -------------------- SECURITY HELPERS --------------------
+
+const escapeHTML = (str) =>
+  String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+
+
 // -------------------- EMAIL HELPERS --------------------
 
 // Notify YOU when someone submits the contact form
 const sendContactNotification = (name, email, message) => {
+  const safeName = escapeHTML(name);
+  const safeEmail = escapeHTML(email);
+  const safeMessage = escapeHTML(message).replace(/\n/g, "<br/>");
+
   return transporter.sendMail({
     from: `"Biz2Optima Contact" <${process.env.EMAIL_USER}>`,
     to: process.env.ADMIN_EMAIL,
-    subject: `📩 New Message from ${name}`,
+    subject: `📩 New Message from ${safeName}`,
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; padding: 24px; border: 1px solid #e0e0e0; border-radius: 8px;">
         <h2 style="color: #1a2f5e;">New Contact Form Submission</h2>
         <hr style="border-color: #d4e6d4;" />
-        <p><strong>Name:</strong> ${name}</p>
-        <p><strong>Email:</strong> <a href="mailto:${email}">${email}</a></p>
+        <p><strong>Name:</strong> ${safeName}</p>
+        <p><strong>Email:</strong> <a href="mailto:${safeEmail}">${safeEmail}</a></p>
         <p><strong>Message:</strong></p>
         <div style="background: #f9f9f9; padding: 16px; border-radius: 6px; color: #333;">
-          ${message.replace(/\n/g, "<br/>")}
+          ${safeMessage}
         </div>
         <hr style="border-color: #d4e6d4;" />
         <p style="color: #888; font-size: 12px;">Sent via Biz2Optima contact form</p>
@@ -65,6 +117,8 @@ const sendContactNotification = (name, email, message) => {
 
 // Send welcome email TO the new subscriber
 const sendWelcomeEmail = (subscriberEmail) => {
+  const safeEmail = escapeHTML(subscriberEmail);
+
   return transporter.sendMail({
     from: `"Biz2Optima Solutions" <${process.env.EMAIL_USER}>`,
     to: subscriberEmail,
@@ -83,7 +137,7 @@ const sendWelcomeEmail = (subscriberEmail) => {
         </ul>
         <p>Feel free to <a href="mailto:${process.env.ADMIN_EMAIL}" style="color: #1a2f5e;">reach out to us</a> anytime.</p>
         <hr style="border-color: #d4e6d4;" />
-        <p style="color: #888; font-size: 12px;">© Biz2Optima Solutions. You subscribed at biz2optima.com</p>
+        <p style="color: #888; font-size: 12px;">© Biz2Optima Solutions. You subscribed at biz2optima.com (${safeEmail})</p>
       </div>
     `
   });
@@ -91,15 +145,17 @@ const sendWelcomeEmail = (subscriberEmail) => {
 
 // Notify YOU when someone subscribes
 const sendSubscriberNotification = (subscriberEmail) => {
+  const safeEmail = escapeHTML(subscriberEmail);
+
   return transporter.sendMail({
     from: `"Biz2Optima" <${process.env.EMAIL_USER}>`,
     to: process.env.ADMIN_EMAIL,
-    subject: `🔔 New Subscriber: ${subscriberEmail}`,
+    subject: `🔔 New Subscriber: ${safeEmail}`,
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; padding: 24px; border: 1px solid #e0e0e0; border-radius: 8px;">
         <h2 style="color: #1a2f5e;">New Newsletter Subscriber</h2>
         <hr style="border-color: #d4e6d4;" />
-        <p><strong>Email:</strong> <a href="mailto:${subscriberEmail}">${subscriberEmail}</a></p>
+        <p><strong>Email:</strong> <a href="mailto:${safeEmail}">${safeEmail}</a></p>
         <hr style="border-color: #d4e6d4;" />
         <p style="color: #888; font-size: 12px;">Sent via Biz2Optima subscriber system</p>
       </div>
@@ -126,11 +182,15 @@ app.get("/", (req, res) => res.json({ status: "API running 🚀" }));
 // -------------------- MESSAGES --------------------
 app.post("/api/messages", messageLimiter, async (req, res) => {
   try {
-    const { name, email, message } = req.body;
+    const parsed = messageSchema.safeParse(req.body);
 
-    if (!name || !email || !message) {
-      return res.status(400).json({ error: "All fields required" });
+    if (!parsed.success) {
+      return res.status(400).json({
+        error: parsed.error.errors[0]?.message || "Invalid input"
+      });
     }
+
+    const { name, email, message } = parsed.data;
 
     // Save to DB
     const result = await pool.query(
@@ -162,13 +222,17 @@ app.get("/api/messages", async (req, res) => {
 // -------------------- SUBSCRIBERS --------------------
 app.post("/api/subscribers", subscriberLimiter, async (req, res) => {
   try {
-    const { email } = req.body;
+    const parsed = subscriberSchema.safeParse(req.body);
 
-    if (!email) {
-      return res.status(400).json({ error: "Email required" });
+    if (!parsed.success) {
+      return res.status(400).json({
+        error: parsed.error.errors[0]?.message || "Invalid input"
+      });
     }
 
-    // Check duplicate
+    const { email } = parsed.data;
+
+    // Check duplicate (email already normalized to lowercase by schema)
     const check = await pool.query(
       "SELECT * FROM subscribers WHERE email = $1", [email]
     );
