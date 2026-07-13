@@ -26,9 +26,12 @@ const pool = new Pool({
   ssl: { rejectUnauthorized: false }
 });
 
-pool.connect()
-  .then(() => console.log("✅ PostgreSQL Connected"))
-  .catch(err => console.error("❌ DB Error:", err));
+try {
+  await pool.query("SELECT NOW()");
+  console.log("✅ PostgreSQL Connected");
+} catch (err) {
+  console.error("❌ DB Error:", err);
+}
 
 // -------------------- NODEMAILER TRANSPORTER --------------------
 const transporter = nodemailer.createTransport({
@@ -41,18 +44,12 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-
 try {
   await transporter.verify();
-  console.log("SMTP connection successful");
+  console.log("✅ Email transporter ready");
 } catch (err) {
-  console.error("SMTP verify failed:", err);
+  console.error("❌ SMTP verify failed:", err);
 }
-
-// Verify transporter on startup
-transporter.verify()
-  .then(() => console.log("✅ Email transporter ready"))
-  .catch(err => console.error("❌ Email error:", err));
 
 // -------------------- VALIDATION SCHEMAS --------------------
 
